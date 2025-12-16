@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ro" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Joc Sus și Jos</title>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+        body {
+            box-sizing: border-box;
+        }
+        
+        @keyframes bounce-gentle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-8deg); }
+            75% { transform: rotate(8deg); }
+        }
+        
+        @keyframes celebrate {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.2) rotate(-10deg); }
+            50% { transform: scale(1.3) rotate(10deg); }
+            75% { transform: scale(1.2) rotate(-5deg); }
+        }
+        
+        .bounce-animation {
+            animation: bounce-gentle 2s ease-in-out infinite;
+        }
+        
+        .wiggle-animation {
+            animation: wiggle 0.5s ease-in-out;
+        }
+        
+        .celebrate-animation {
+            animation: celebrate 0.6s ease-in-out;
+        }
+        
+        .game-item {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        
+        .game-item:hover {
+            transform: scale(1.1);
+        }
+        
+        .game-item:active {
+            transform: scale(0.95);
+        }
+    </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full">
+  <div id="app" class="w-full h-full overflow-auto"></div>
+  <script>
+        const defaultConfig = {
+            background_color: "#FFF4E6",
+            sky_color: "#87CEEB",
+            ground_color: "#90EE90",
+            item_color: "#FFD700",
+            text_color: "#2C3E50",
+            title_text: "Unde se află personajele?",
+            instruction_text: "Apasă pe obiectul corect!",
+            correct_message: "Bravo! Foarte bine! 🎉",
+            try_again_message: "Mai încearcă! 😊",
+            font_family: "Comic Sans MS",
+            font_size: 18
+        };
+        
+        const animals = [
+            { emoji: "🎅", name: "Moș Crăciun", correctPos: "sus", question: "Unde este Moș Crăciun?" },
+            { emoji: "🧝", name: "spiriduș", correctPos: "sus", question: "Unde este spiridușul?" },
+            { emoji: "🦌", name: "ren", correctPos: "jos", question: "Unde este renul?" },
+            { emoji: "🐕", name: "cățel", correctPos: "jos", question: "Unde este cățelul?" }
+        ];
+        
+        let currentAnimal = null;
+        let previousAnimal = null;
+        let score = 0;
+        let lastPosition = null;
+        let availableAnimals = [...animals];
+        
+        function getRandomAnimal() {
+            // Determine which position we need this round
+            const targetPosition = lastPosition === 'sus' ? 'jos' : 'sus';
+            
+            // Filter animals that match the target position
+            let validAnimals = availableAnimals.filter(a => a.correctPos === targetPosition);
+            
+            // If no animals available for this position, reset the pool
+            if (validAnimals.length === 0) {
+                availableAnimals = animals.filter(a => a.correctPos === targetPosition);
+                validAnimals = [...availableAnimals];
+            }
+            
+            // Pick a random animal from valid ones
+            const randomIndex = Math.floor(Math.random() * validAnimals.length);
+            const newAnimal = validAnimals[randomIndex];
+            
+            // Remove this animal from available pool
+            availableAnimals = availableAnimals.filter(a => a.name !== newAnimal.name);
+            
+            return newAnimal;
+        }
+        
+        function newRound() {
+            previousAnimal = currentAnimal;
+            currentAnimal = getRandomAnimal();
+            lastPosition = currentAnimal.correctPos;
+            updateGame();
+        }
+        
+        function handleClick(position) {
+            const feedbackEl = document.getElementById('feedback');
+            const scoreEl = document.getElementById('score');
+            const clickedItem = document.getElementById(position === 'sus' ? 'top-item' : 'bottom-item');
+            
+            if (position === currentAnimal.correctPos) {
+                score++;
+                scoreEl.textContent = score;
+                feedbackEl.textContent = window.elementSdk?.config?.correct_message || defaultConfig.correct_message;
+                feedbackEl.style.color = '#27AE60';
+                feedbackEl.style.fontSize = `${(window.elementSdk?.config?.font_size || defaultConfig.font_size) * 1.5}px`;
+                
+                clickedItem.classList.add('celebrate-animation');
+                setTimeout(() => {
+                    clickedItem.classList.remove('celebrate-animation');
+                    setTimeout(newRound, 800);
+                }, 600);
+            } else {
+                feedbackEl.textContent = window.elementSdk?.config?.try_again_message || defaultConfig.try_again_message;
+                feedbackEl.style.color = '#E74C3C';
+                feedbackEl.style.fontSize = `${(window.elementSdk?.config?.font_size || defaultConfig.font_size) * 1.2}px`;
+                
+                clickedItem.classList.add('wiggle-animation');
+                setTimeout(() => {
+                    clickedItem.classList.remove('wiggle-animation');
+                }, 500);
+            }
+            
+            setTimeout(() => {
+                feedbackEl.textContent = '';
+            }, 1500);
+        }
+        
+        function updateGame() {
+            const config = window.elementSdk?.config || defaultConfig;
+            const baseSize = config.font_size || defaultConfig.font_size;
+            const customFont = config.font_family || defaultConfig.font_family;
+            const baseFontStack = 'Arial, sans-serif';
+            
+            const app = document.getElementById('app');
+            app.style.backgroundColor = config.background_color || defaultConfig.background_color;
+            app.style.fontFamily = `${customFont}, ${baseFontStack}`;
+            
+            app.innerHTML = `
+                <div class="w-full h-full flex flex-col">
+                    <!-- Header -->
+                    <header class="text-center py-6 px-4" style="background-color: ${config.item_color || defaultConfig.item_color};">
+                        <h1 id="title" class="font-bold mb-2" style="color: ${config.text_color || defaultConfig.text_color}; font-size: ${baseSize * 2}px; font-family: ${customFont}, ${baseFontStack};">
+                            ${config.title_text || defaultConfig.title_text}
+                        </h1>
+                        <p id="instruction" class="font-semibold" style="color: ${config.text_color || defaultConfig.text_color}; font-size: ${baseSize * 1.2}px; font-family: ${customFont}, ${baseFontStack};">
+                            ${config.instruction_text || defaultConfig.instruction_text}
+                        </p>
+                    </header>
+                    
+                    <!-- Question -->
+                    <div class="text-center py-4 px-4">
+                        <p id="question" class="font-bold" style="color: ${config.text_color || defaultConfig.text_color}; font-size: ${baseSize * 1.8}px; font-family: ${customFont}, ${baseFontStack};">
+                            ${currentAnimal.question}
+                        </p>
+                    </div>
+                    
+                    <!-- Feedback -->
+                    <div class="text-center py-2 px-4 min-h-[60px] flex items-center justify-center">
+                        <p id="feedback" class="font-bold" style="font-family: ${customFont}, ${baseFontStack};"></p>
+                    </div>
+                    
+                    <!-- Game Area -->
+                    <div class="flex-1 flex flex-col justify-between py-6 px-4">
+                        <!-- Top Area (Sus) -->
+                        <div class="flex flex-col items-center justify-center" style="background: linear-gradient(to bottom, ${config.sky_color || defaultConfig.sky_color}, transparent); border-radius: 20px; padding: 40px; min-height: 200px;">
+                            <div id="top-item" class="game-item text-center" onclick="handleClick('sus')">
+                                <div class="text-9xl mb-2 bounce-animation">${currentAnimal.correctPos === 'sus' ? currentAnimal.emoji : '🔮'}</div>
+                                <div class="font-bold px-6 py-3 rounded-full" style="background-color: ${config.item_color || defaultConfig.item_color}; color: ${config.text_color || defaultConfig.text_color}; font-size: ${baseSize * 1.5}px; font-family: ${customFont}, ${baseFontStack};">
+                                    SUS ⬆️
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Bottom Area (Jos) -->
+                        <div class="flex flex-col items-center justify-center" style="background: linear-gradient(to top, ${config.ground_color || defaultConfig.ground_color}, transparent); border-radius: 20px; padding: 40px; min-height: 200px;">
+                            <div id="bottom-item" class="game-item text-center" onclick="handleClick('jos')">
+                                <div class="font-bold px-6 py-3 rounded-full mb-2" style="background-color: ${config.item_color || defaultConfig.item_color}; color: ${config.text_color || defaultConfig.text_color}; font-size: ${baseSize * 1.5}px; font-family: ${customFont}, ${baseFontStack};">
+                                    JOS ⬇️
+                                </div>
+                                <div class="text-9xl">${currentAnimal.correctPos === 'jos' ? currentAnimal.emoji : '🔮'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Score -->
+                    <footer class="text-center py-4 px-4" style="background-color: ${config.item_color || defaultConfig.item_color};">
+                        <p class="font-bold" style="color: ${config.text_color || defaultConfig.text_color}; font-size: ${baseSize * 1.3}px; font-family: ${customFont}, ${baseFontStack};">
+                            Puncte: <span id="score">${score}</span> ⭐
+                        </p>
+                    </footer>
+                </div>
+            `;
+        }
+        
+        async function onConfigChange(config) {
+            updateGame();
+        }
+        
+        function mapToCapabilities(config) {
+            return {
+                recolorables: [
+                    {
+                        get: () => config.background_color || defaultConfig.background_color,
+                        set: (value) => {
+                            config.background_color = value;
+                            window.elementSdk.setConfig({ background_color: value });
+                        }
+                    },
+                    {
+                        get: () => config.sky_color || defaultConfig.sky_color,
+                        set: (value) => {
+                            config.sky_color = value;
+                            window.elementSdk.setConfig({ sky_color: value });
+                        }
+                    },
+                    {
+                        get: () => config.ground_color || defaultConfig.ground_color,
+                        set: (value) => {
+                            config.ground_color = value;
+                            window.elementSdk.setConfig({ ground_color: value });
+                        }
+                    },
+                    {
+                        get: () => config.item_color || defaultConfig.item_color,
+                        set: (value) => {
+                            config.item_color = value;
+                            window.elementSdk.setConfig({ item_color: value });
+                        }
+                    },
+                    {
+                        get: () => config.text_color || defaultConfig.text_color,
+                        set: (value) => {
+                            config.text_color = value;
+                            window.elementSdk.setConfig({ text_color: value });
+                        }
+                    }
+                ],
+                borderables: [],
+                fontEditable: {
+                    get: () => config.font_family || defaultConfig.font_family,
+                    set: (value) => {
+                        config.font_family = value;
+                        window.elementSdk.setConfig({ font_family: value });
+                    }
+                },
+                fontSizeable: {
+                    get: () => config.font_size || defaultConfig.font_size,
+                    set: (value) => {
+                        config.font_size = value;
+                        window.elementSdk.setConfig({ font_size: value });
+                    }
+                }
+            };
+        }
+        
+        function mapToEditPanelValues(config) {
+            return new Map([
+                ["title_text", config.title_text || defaultConfig.title_text],
+                ["instruction_text", config.instruction_text || defaultConfig.instruction_text],
+                ["correct_message", config.correct_message || defaultConfig.correct_message],
+                ["try_again_message", config.try_again_message || defaultConfig.try_again_message]
+            ]);
+        }
+        
+        if (window.elementSdk) {
+            window.elementSdk.init({
+                defaultConfig,
+                onConfigChange,
+                mapToCapabilities,
+                mapToEditPanelValues
+            });
+        }
+        
+        newRound();
+    </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9aec39232656a051',t:'MTc2NTg2NzU4Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
